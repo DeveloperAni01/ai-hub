@@ -11,7 +11,7 @@ const initSocketServer = (httpServer) => {
     io.use(async (socket, next) => {
         const cookies = cookie.parse(socket.handshake.headers?.cookie || "");
         if (!cookies.authUser) {
-             next(new Error("Authentication error: No token found!!"));
+            next(new Error("Authentication error: No token found!!"));
         }
 
         try {
@@ -22,7 +22,7 @@ const initSocketServer = (httpServer) => {
             socket.user = currentUser;
             next();
         } catch (error) {
-             next(new Error("Authentication error: Invalid token!!"));
+            next(new Error("Authentication error: Invalid token!!"));
         }
     });
 
@@ -30,7 +30,7 @@ const initSocketServer = (httpServer) => {
         console.log("New client connected:->", socket.user._id);
 
         socket.on("ai-message", async (messagePayload) => {
-           
+
             await messageModel.create({
                 user: socket.user._id,
                 content: messagePayload.content,
@@ -38,12 +38,12 @@ const initSocketServer = (httpServer) => {
                 role: "user"
             });
 
-            const chatHistory = await messageModel.find({ chatID: messagePayload.chatID })
+            const chatHistory = (await messageModel.find({ chatID: messagePayload.chatID }).sort({ createdAt: -1 }).limit(4).lean()).reverse()
 
             const response = await generateResponse(chatHistory.map(msg => {
                 return {
                     role: msg.role,
-                    parts:[{text: msg.content}]
+                    parts: [{ text: msg.content }]
                 }
             }));
 
@@ -53,18 +53,18 @@ const initSocketServer = (httpServer) => {
                 chatID: messagePayload.chatID,
                 role: "model"
             });
-            socket.emit("ai-response", { 
+            socket.emit("ai-response", {
                 content: response,
                 chatID: messagePayload.chatID
-             });
+            });
         })
 
-        
+
 
         socket.on("disconnect", () => {
             console.log("Client disconnected");
         });
     });
-}; 
+};
 
 export default initSocketServer;
